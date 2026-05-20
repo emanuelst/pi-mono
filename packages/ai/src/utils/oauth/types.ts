@@ -18,9 +18,17 @@ export type OAuthPrompt = {
 	allowEmpty?: boolean;
 };
 
+export const OAUTH_LOGIN_METHODS = ["browser", "device-code"] as const;
+export type OAuthLoginMethod = (typeof OAUTH_LOGIN_METHODS)[number];
+
+export function isOAuthLoginMethod(value: string): value is OAuthLoginMethod {
+	return OAUTH_LOGIN_METHODS.includes(value as OAuthLoginMethod);
+}
+
 export type OAuthAuthInfo = {
 	url: string;
 	instructions?: string;
+	loginMethod?: OAuthLoginMethod;
 };
 
 export type OAuthSelectOption = {
@@ -38,6 +46,8 @@ export interface OAuthLoginCallbacks {
 	onPrompt: (prompt: OAuthPrompt) => Promise<string>;
 	onProgress?: (message: string) => void;
 	onManualCodeInput?: () => Promise<string>;
+	/** Optional preferred login method; skips interactive method selection when set. */
+	preferredLoginMethod?: OAuthLoginMethod;
 	/** Show an interactive selector and return the selected option id, or undefined on cancel. */
 	onSelect?: (prompt: OAuthSelectPrompt) => Promise<string | undefined>;
 	signal?: AbortSignal;
