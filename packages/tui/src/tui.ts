@@ -319,6 +319,8 @@ export class TUI extends Container {
 	private pendingOsc11BackgroundQueries: PendingOsc11BackgroundQuery[] = [];
 	private terminalColorSchemeListeners = new Set<(scheme: TerminalColorScheme) => void>();
 	private terminalColorSchemeNotificationsEnabled = false;
+	private terminalFocusListeners = new Set<() => void>();
+	private terminalFocusNotificationsEnabled = false;
 
 	// Overlay stack for modal components rendered on top of base content
 	private focusOrderCounter = 0;
@@ -642,6 +644,9 @@ export class TUI extends Container {
 		if (this.terminalColorSchemeNotificationsEnabled) {
 			this.terminal.write("\x1b[?2031h");
 		}
+		if (this.terminalFocusNotificationsEnabled) {
+			this.terminal.write("\x1b[?1004h");
+		}
 		this.queryCellSize();
 		this.requestRender();
 	}
@@ -662,6 +667,23 @@ export class TUI extends Container {
 		return () => {
 			this.terminalColorSchemeListeners.delete(listener);
 		};
+	}
+
+	onTerminalFocus(listener: () => void): () => void {
+		this.terminalFocusListeners.add(listener);
+		return () => {
+			this.terminalFocusListeners.delete(listener);
+		};
+	}
+
+	setTerminalFocusNotifications(enabled: boolean): void {
+		if (this.terminalFocusNotificationsEnabled === enabled) {
+			return;
+		}
+		this.terminalFocusNotificationsEnabled = enabled;
+		if (!this.stopped) {
+			this.terminal.write(enabled ? "\x1b[?1004h" : "\x1b[?1004l");
+		}
 	}
 
 	setTerminalColorSchemeNotifications(enabled: boolean): void {
@@ -692,6 +714,9 @@ export class TUI extends Container {
 		}
 		if (this.terminalColorSchemeNotificationsEnabled) {
 			this.terminal.write("\x1b[?2031l");
+		}
+		if (this.terminalFocusNotificationsEnabled) {
+			this.terminal.write("\x1b[?1004l");
 		}
 		// Move cursor to the end of the content to prevent overwriting/artifacts on exit
 		if (this.previousLines.length > 0) {
@@ -759,6 +784,12 @@ export class TUI extends Container {
 	}
 
 	private handleInput(data: string): void {
+		if (data === "\x1b[I" || data === "\x1b[O") {
+			if (data === "\x1b[I") {
+				for (const listener of this.terminalFocusListeners) listener();
+			}
+			return;
+		}
 		if (this.consumeOsc11BackgroundResponse(data)) {
 			return;
 		}

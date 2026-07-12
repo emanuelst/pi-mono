@@ -247,3 +247,24 @@ describe("TUI.queryTerminalBackgroundColor", () => {
 		}
 	});
 });
+
+describe("TUI terminal focus notifications", () => {
+	it("enables reporting, emits focus-in, and disables reporting on stop", () => {
+		const terminal = new TestTerminal();
+		const tui = new TUI(terminal);
+		let focusCount = 0;
+		tui.onTerminalFocus(() => {
+			focusCount += 1;
+		});
+		tui.setTerminalFocusNotifications(true);
+
+		tui.start();
+		terminal.sendInput("\x1b[I");
+		terminal.sendInput("\x1b[O");
+		tui.stop();
+
+		assert.strictEqual(focusCount, 1);
+		assert.ok(terminal.writes.includes("\x1b[?1004h"));
+		assert.ok(terminal.writes.includes("\x1b[?1004l"));
+	});
+});

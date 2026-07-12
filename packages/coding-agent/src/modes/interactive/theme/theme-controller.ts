@@ -32,6 +32,7 @@ export class InteractiveThemeController {
 		this.activeThemeName = resolveThemeSetting(this.settingsManager.getThemeSetting(), this.terminalTheme);
 		initTheme(this.activeThemeName, true);
 		this.ui.onTerminalColorSchemeChange((terminalTheme) => this.applyTerminalTheme(terminalTheme));
+		this.ui.onTerminalFocus(() => void this.refreshTerminalThemeFromBackground());
 	}
 
 	async applyFromSettings(): Promise<void> {
@@ -108,6 +109,15 @@ export class InteractiveThemeController {
 		if (this.autoSyncEnabled === enabled) return;
 		this.autoSyncEnabled = enabled;
 		this.ui.setTerminalColorSchemeNotifications(enabled);
+		this.ui.setTerminalFocusNotifications(enabled);
+	}
+
+	private async refreshTerminalThemeFromBackground(): Promise<void> {
+		const detection = await detectTerminalBackgroundTheme({ ui: this.ui, timeoutMs: 100 });
+		if (detection.source !== "terminal background") {
+			return;
+		}
+		this.applyTerminalTheme(detection.theme);
 	}
 
 	private applyTerminalTheme(terminalTheme: TerminalTheme): void {
