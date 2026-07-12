@@ -113,10 +113,9 @@ export class InteractiveThemeController {
 	}
 
 	private async refreshTerminalThemeFromBackground(): Promise<void> {
+		if (!this.autoSyncEnabled) return;
 		const detection = await detectTerminalBackgroundTheme({ ui: this.ui, timeoutMs: 100 });
-		if (detection.source !== "terminal background") {
-			return;
-		}
+		if (detection.source !== "terminal background") return;
 		this.applyTerminalTheme(detection.theme);
 	}
 

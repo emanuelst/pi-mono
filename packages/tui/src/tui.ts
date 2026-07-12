@@ -669,6 +669,16 @@ export class TUI extends Container {
 		};
 	}
 
+	setTerminalColorSchemeNotifications(enabled: boolean): void {
+		if (this.terminalColorSchemeNotificationsEnabled === enabled) {
+			return;
+		}
+		this.terminalColorSchemeNotificationsEnabled = enabled;
+		if (!this.stopped) {
+			this.terminal.write(enabled ? "\x1b[?2031h" : "\x1b[?2031l");
+		}
+	}
+
 	onTerminalFocus(listener: () => void): () => void {
 		this.terminalFocusListeners.add(listener);
 		return () => {
@@ -683,16 +693,6 @@ export class TUI extends Container {
 		this.terminalFocusNotificationsEnabled = enabled;
 		if (!this.stopped) {
 			this.terminal.write(enabled ? "\x1b[?1004h" : "\x1b[?1004l");
-		}
-	}
-
-	setTerminalColorSchemeNotifications(enabled: boolean): void {
-		if (this.terminalColorSchemeNotificationsEnabled === enabled) {
-			return;
-		}
-		this.terminalColorSchemeNotificationsEnabled = enabled;
-		if (!this.stopped) {
-			this.terminal.write(enabled ? "\x1b[?2031h" : "\x1b[?2031l");
 		}
 	}
 
@@ -784,10 +784,7 @@ export class TUI extends Container {
 	}
 
 	private handleInput(data: string): void {
-		if (data === "\x1b[I" || data === "\x1b[O") {
-			if (data === "\x1b[I") {
-				for (const listener of this.terminalFocusListeners) listener();
-			}
+		if (this.consumeTerminalFocusReport(data)) {
 			return;
 		}
 		if (this.consumeOsc11BackgroundResponse(data)) {
@@ -863,6 +860,14 @@ export class TUI extends Container {
 			this.focusedComponent.handleInput(data);
 			this.requestRender();
 		}
+	}
+
+	private consumeTerminalFocusReport(data: string): boolean {
+		if (data !== "\x1b[I" && data !== "\x1b[O") return false;
+		if (data === "\x1b[I") {
+			for (const listener of this.terminalFocusListeners) listener();
+		}
+		return true;
 	}
 
 	private consumeOsc11BackgroundResponse(data: string): boolean {
