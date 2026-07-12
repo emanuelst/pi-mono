@@ -319,6 +319,8 @@ export class TUI extends Container {
 	private pendingOsc11BackgroundQueries: PendingOsc11BackgroundQuery[] = [];
 	private terminalColorSchemeListeners = new Set<(scheme: TerminalColorScheme) => void>();
 	private terminalColorSchemeNotificationsEnabled = false;
+	private terminalFocusListeners = new Set<() => void>();
+	private terminalFocusNotificationsEnabled = false;
 
 	// Overlay stack for modal components rendered on top of base content
 	private focusOrderCounter = 0;
@@ -642,6 +644,9 @@ export class TUI extends Container {
 		if (this.terminalColorSchemeNotificationsEnabled) {
 			this.terminal.write("\x1b[?2031h");
 		}
+		if (this.terminalFocusNotificationsEnabled) {
+			this.terminal.write("\x1b[?1004h");
+		}
 		this.queryCellSize();
 		this.requestRender();
 	}
@@ -674,6 +679,23 @@ export class TUI extends Container {
 		}
 	}
 
+	onTerminalFocus(listener: () => void): () => void {
+		this.terminalFocusListeners.add(listener);
+		return () => {
+			this.terminalFocusListeners.delete(listener);
+		};
+	}
+
+	setTerminalFocusNotifications(enabled: boolean): void {
+		if (this.terminalFocusNotificationsEnabled === enabled) {
+			return;
+		}
+		this.terminalFocusNotificationsEnabled = enabled;
+		if (!this.stopped) {
+			this.terminal.write(enabled ? "\x1b[?1004h" : "\x1b[?1004l");
+		}
+	}
+
 	private queryCellSize(): void {
 		// Only query if terminal supports images (cell size is only used for image rendering)
 		if (!getCapabilities().images) {
@@ -692,6 +714,9 @@ export class TUI extends Container {
 		}
 		if (this.terminalColorSchemeNotificationsEnabled) {
 			this.terminal.write("\x1b[?2031l");
+		}
+		if (this.terminalFocusNotificationsEnabled) {
+			this.terminal.write("\x1b[?1004l");
 		}
 		// Move cursor to the end of the content to prevent overwriting/artifacts on exit
 		if (this.previousLines.length > 0) {
@@ -759,6 +784,9 @@ export class TUI extends Container {
 	}
 
 	private handleInput(data: string): void {
+		if (this.consumeTerminalFocusReport(data)) {
+			return;
+		}
 		if (this.consumeOsc11BackgroundResponse(data)) {
 			return;
 		}
@@ -832,6 +860,14 @@ export class TUI extends Container {
 			this.focusedComponent.handleInput(data);
 			this.requestRender();
 		}
+	}
+
+	private consumeTerminalFocusReport(data: string): boolean {
+		if (data !== "\x1b[I" && data !== "\x1b[O") return false;
+		if (data === "\x1b[I") {
+			for (const listener of this.terminalFocusListeners) listener();
+		}
+		return true;
 	}
 
 	private consumeOsc11BackgroundResponse(data: string): boolean {
