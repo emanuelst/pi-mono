@@ -1178,7 +1178,7 @@ export class InteractiveMode {
 
 	private isPackageSource(sourceInfo?: SourceInfo): boolean {
 		const source = sourceInfo?.source ?? "";
-		return source.startsWith("npm:") || source.startsWith("git:");
+		return source.startsWith("npm:") || parseGitUrl(source) !== null;
 	}
 
 	private buildScopeGroups(items: Array<{ path: string; sourceInfo?: SourceInfo }>): Array<{
