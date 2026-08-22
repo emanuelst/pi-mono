@@ -680,6 +680,37 @@ describe("InteractiveMode.showLoadedResources", () => {
 		expect(output).not.toContain("extensions/answer.ts");
 	});
 
+	test("labels SSH Git packages by repository instead of the entry directory", () => {
+		const extensions: ExtensionFixture[] = [
+			{
+				path: "/tmp/agent/.pi/git/github.com/earendil-works/pi-transcribe/src/index.ts",
+				sourceInfo: createSourceInfo(
+					"/tmp/agent/.pi/git/github.com/earendil-works/pi-transcribe/src/index.ts",
+					{
+						source: "ssh://git@github.com/earendil-works/pi-transcribe",
+						scope: "user",
+						origin: "package",
+						baseDir: "/tmp/agent/.pi/git/github.com/earendil-works/pi-transcribe",
+					},
+				),
+			},
+		];
+
+		const fakeThis = createShowLoadedResourcesThis({
+			quietStartup: false,
+			extensions,
+			useRealScopeGroups: true,
+		});
+
+		(InteractiveMode as any).prototype.showLoadedResources.call(fakeThis, {
+			force: false,
+		});
+
+		expect(normalizeRenderedOutput(fakeThis.loadedResourcesContainer)).toMatchInlineSnapshot(`
+"[Extensions]
+  earendil-works/pi-transcribe:src"`);
+	});
+
 	test("captures mixed extension layouts in compact output", () => {
 		const fakeThis = createShowLoadedResourcesThis({
 			quietStartup: false,
